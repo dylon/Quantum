@@ -188,7 +188,9 @@ var Q = {};
 	 * A monotonic array of Quantums
 	 */
 	QuantumSet.prototype.monotonic = function( compare ) {
-		return this._set.sort(( compare || this.compare ));
+		var set = this._set.slice();
+		set.sort(( compare || this.compare ));
+		return set;
 	};
 
 	/**
@@ -221,12 +223,14 @@ var Q = {};
 	 * Whether q1 intersects q2
 	 */
 	QuantumSet.prototype.intersect = function( q1, q2 ) {
-		var q1a, q1B, q2a;
+		var q1a, q1B, q2a, q2B;
 		q1a = q1.start;
 		q1B = q1.stop;
 		q2a = q2.start;
+		q2B = q2.stop;
 
-		return (( q1a <= q2a ) && ( q1B >= q2a ));
+		return ((( q1a <= q2a ) && ( q1B >= q2a )) || 
+			(( q2a <= q1a) && ( q2B >= q1a )));
 	};
 	
 	/**
@@ -607,8 +611,8 @@ var Q = {};
 
 			this.emsg = "";
 
-			function fail( q1, q2, i ) {
-				var imsg = (( i ) ?  " intersect." : " do not intersect." );
+			function fail( q1, q2, v ) {
+				var imsg = (( v ) ?  " intersect." : " do not intersect." );
 				buf.push( q1.toString() + " and " + q2.toString() + imsg );
 			}
 
@@ -616,7 +620,7 @@ var Q = {};
 				[ true  , false , false , false , true  ],
 				[ false , true  , false , false , false ],
 				[ false , false , true  , false , true  ],
-				[ false , false , false , false , false ],
+				[ false , false , false , true  , false ],
 				[ true  , false , true  , false , true  ]
 			];
 
@@ -635,7 +639,7 @@ var Q = {};
 					v  = mtrx[ i ][ j ];
 
 					if ( set.intersect( q1, q2 ) !== v ) {
-						fail( q1, q2, !v );
+						fail( i, j, q1, q2, !v );
 					}
 				}
 			}
