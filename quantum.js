@@ -231,7 +231,7 @@ var Q = {};
 		q2B = q2.stop;
 
 		return ((( q1a <= q2a ) && ( q1B >= q2a )) || 
-			(( q2a <= q1a) && ( q2B >= q1a )));
+			(( q2a <= q1a ) && ( q2B >= q1a )));
 	};
 	
 	/**
