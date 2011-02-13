@@ -44,12 +44,13 @@ var Q = {};
 
 (function( Q ) {
 
-	var MS_PER_SEC, MS_PER_MIN, MS_PER_HR, MAX;
+	var MS_PER_SEC, MS_PER_MIN, MS_PER_HR, MIN, MAX;
 	MS_PER_SEC = 1000;             //< Milliseconds per second
 	MS_PER_MIN = MS_PER_SEC * 60;  //< Milliseconds per minute
 	MS_PER_HR  = MS_PER_MIN * 60;  //< Milliseconds per hour
 
-	// Binary operation which determines the maximum value of two parameters
+	// Binary operation which determines the min/maximum value of two parameters
+	MIN = Math.min;
 	MAX = Math.max;
 
 
@@ -222,7 +223,7 @@ var Q = {};
 	 * @return {boolean}
 	 * Whether q1 intersects q2
 	 */
-	QuantumSet.prototype.intersect = function( q1, q2 ) {
+	QuantumSet.prototype.intersects = function( q1, q2 ) {
 		var q1a, q1B, q2a, q2B;
 		q1a = q1.start;
 		q1B = q1.stop;
@@ -252,8 +253,8 @@ var Q = {};
 	QuantumSet.prototype.merge = function( q1, q2 ) {
 		var a, B, q;
 
-		if ( this.intersect( q1, q2 )) {
-			a = q1.start;
+		if ( this.intersects( q1, q2 )) {
+			a = MIN( q1.start, q2.start );
 			B = MAX( q1.stop, q2.stop );
 			q = new Quantum( a, B );
 			return [ q ];
@@ -266,20 +267,16 @@ var Q = {};
 	 * Returns a disjoint, monotone increasing set of Quantums from those in
 	 * this QuantumSet.
 	 *
-	 * @param {boolean} monotonic
+	 * @param {boolean} mono
 	 * Whether the elements in this QuantumSet have already been sorted
 	 * monotonically
 	 *
 	 * @return {array.<Quantum>}
 	 * A disjoint, monotone increasing set of Quantums
 	 */
-	QuantumSet.prototype.disjoint = function( monotonic ) {
+	QuantumSet.prototype.disjoint = function( mono ) {
 		var set, $set, _set, q, i, k, n;
-
-		set = (( !monotonic ) ?
-			this.monotonic() : 
-			this._set );
-
+		set = (( !mono ) ?  this.monotonic() : this._set );
 		_set = [];
 
 		q = set[ 0 ];
@@ -375,314 +372,11 @@ var Q = {};
 
 
 	//
-	// Initialize the Unit Test
-	//
-	
-
-	function Test( name, fn, emsg ) {
-		this.name = name;
-		this.fn = fn;
-		this.emsg = ( emsg || "" );
-	}
-
-	Test.prototype.error = function() {
-		if ( typeof( this.emsg ) === 'function' ) {
-			return this.emsg();
-		}
-
-		return this.emsg;
-	};
-
-	Test.prototype.toString = function() {
-		return this.name;
-	};
-
-
-	//
-	// Initialize the Unit Testing Suite
-	//
-	
-
-	function Unit() {
-		this.init();
-		this.reset();
-	}
-
-	Unit.prototype.init = function() {
-		this._tests = [];
-	};
-
-	Unit.prototype.reset = function() {
-		this._failed = [];
-	};
-
-	Unit.prototype.failed = function() {
-		return this._failed;
-	};
-
-	Unit.prototype.test = function() {
-		var f, s, t, i, k;
-
-		f = this._failed;
-		s = this._tests;
-		k = s.length;
-
-		for ( i = 0; i < k; ++ i ) {
-			t = s[ i ];
-
-			if ( !t.fn( this )) {
-				f.push( t );
-			}
-		}
-
-		return ( f.length === 0 );
-	};
-
-
-	//
-	//
-	//
-
-
-	function TimeTest( name, unit, vals ) {
-		Test.call( this, name, this.run );
-		this.unit = unit;
-		this.vals = vals;
-	}
-
-	TimeTest.prototype = new Test();
-	TimeTest.prototype.constructor = TimeTest;
-
-	TimeTest.prototype.fail = function( f, q, v, e ) {
-		f.push(( "Quantum(" + q.toString() + ") : " + v + " !== " + e ));
-	};
-
-	TimeTest.prototype.run = function( suite ) {
-		var set, unit, vals, f, q, i, k, v, e;
-
-		this.emsg = "";
-
-		unit = this.unit;
-		vals = this.vals;
-
-		set = suite.set().set();
-		f = [];
-
-		k = vals.length;
-		
-		if ( k !== set.length ) {
-			this.emsg = ( "Unmatched array lengths: " + k + " !== " + set.length );
-			return false;
-		}
-
-		for ( i = 0; i < k; ++ i ) {
-			q = set[ i ];
-			e = vals[ i ];
-			v = q[ unit ].apply( q );
-			
-			if ( v !== e ) {
-				this.fail( f, q, v, e );
-			}
-		}
-
-		if ( f.length !== 0 ) {
-			this.emsg = f.join( ',\n' );
-			return false;
-		}
-		
-		return true;
-	};
-
-
-	//
-	// Initialize the Quantum Unit Testing Suite
-	//
-
-
-	function QUnit() {
-		Unit.call( this );
-	}
-
-	QUnit.prototype = new Unit();
-	QUnit.prototype.constructor = QUnit;
-
-	QUnit.prototype.init = function() {
-		var tests;
-
-		Unit.prototype.init.call( this );
-		tests = this._tests;
-
-		tests.push( new Test( "Initial Set Length", function( suite ) {
-			var set, retval, LEN;
-
-			this.emsg = "";
-
-			LEN = 5;
-			set = suite.set().set();
-			retval = ( set.length === LEN );
-
-			if ( !retval ) {
-				this.emsg = ( set.length + ' !== ' + LEN );
-			}
-
-			return retval;
-		}));
-
-		tests.push( new TimeTest( "Validating Milliseconds", "millis", [
-			198, 
-			80545396, 
-			21099, 
-			235000359315, 
-			12340
-		]));
-
-		tests.push( new TimeTest( "Validating Seconds", "seconds", [
-			( 198 / 1000 ),
-			( 80545396 / 1000 ),
-			( 21099 / 1000 ),
-			( 235000359315 / 1000 ),
-			( 12340 / 1000 )
-		]));
-
-		tests.push( new TimeTest( "Validating Minutes", "minutes", [
-			( 198 / ( 1000 * 60 )),
-			( 80545396 / ( 1000 * 60 )),
-			( 21099 / ( 1000 * 60 )),
-			( 235000359315 / ( 1000 * 60 )),
-			( 12340 / ( 1000 * 60 ))
-		]));
-
-		tests.push( new TimeTest( "Validating Hours", "hours", [
-			( 198 / ( 1000 * 60 * 60 )),
-			( 80545396 / ( 1000 * 60 * 60 )),
-			( 21099 / ( 1000 * 60 * 60 )),
-			( 235000359315 / ( 1000 * 60 * 60 )),
-			( 12340 / ( 1000 * 60 * 60 ))
-		]));
-
-		tests.push( new Test( "compare( 1, 2 ) === false", function( suite ) {
-			var q1, q2;
-
-			q1 = new Quantum( 1, 2 );
-			q2 = new Quantum( 2, 3 );
-
-			return suite.set().compare( q1, q2 ) === false;
-		}, "[ 1, 2 ] is greater than [ 2, 3 ]"));
-
-		tests.push( new Test( "compare( 2, 1 ) === true", function( suite ) {
-			var q1, q2;
-
-			q1 = new Quantum( 2, 3 );
-			q2 = new Quantum( 1, 2 );
-
-			return ( suite.set().compare( q1, q2 ) === true );
-		}, "[ 2, 3 ] is less than [ 1, 2 ]"));
-
-		tests.push( new Test( "compare( 1, 1 ) === true", function( suite ) {
-			var q1, q2;
-
-			q1 = new Quantum( 1, 2 );
-			q2 = new Quantum( 1, 3 );
-
-			return ( suite.set().compare( q1, q2 ) === true );
-		}, "[ 1, 2 ] is not equal to [ 1, 3 ]"));
-
-		tests.push( new Test( "Validating Monotonicity", function( suite ) {
-			var set = suite.set().monotonic();
-
-			if (( set[ 0 ].start !== 2 ) ||
-				( set[ 1 ].start !== 123 ) ||
-				( set[ 2 ].start !== 2322 ) ||
-				( set[ 3 ].start !== 2342933 ) ||
-				( set[ 4 ].start !== 3232123423 )) {
-				
-				this.emsg = ( "Set is not monotone increasing: " + suite.toString());
-				return false;
-			}
-
-			return true;
-		}));
-
-		tests.push( new Test( "Validating Intersections", function( suite ) {
-			var set, $set, mtrx, buf, q1, q2, i, j, k, v;
-			set = suite.set();
-			$set = set.set();
-			buf = [];
-
-			this.emsg = "";
-
-			function fail( q1, q2, v ) {
-				var imsg = (( v ) ?  " intersect." : " do not intersect." );
-				buf.push( q1.toString() + " and " + q2.toString() + imsg );
-			}
-
-			mtrx = [
-				[ true  , false , false , false , true  ],
-				[ false , true  , false , false , false ],
-				[ false , false , true  , false , true  ],
-				[ false , false , false , true  , false ],
-				[ true  , false , true  , false , true  ]
-			];
-
-			k = $set.length;
-
-			if ( mtrx.length !== k ) {
-				this.emsg = ( "Array lengths do not match: " + mtrx.length + " !== " + k );
-				return false;
-			}
-
-			for ( i = 0; i < k; ++ i ) {
-				q1 = $set[ i ];
-
-				for ( j = 0; j < k; ++ j ) {
-					q2 = $set[ j ];
-					v  = mtrx[ i ][ j ];
-
-					if ( set.intersect( q1, q2 ) !== v ) {
-						fail( i, j, q1, q2, !v );
-					}
-				}
-			}
-
-			if ( buf.length !== 0 ) {
-				this.emsg = buf.join( ',\n' );
-				return false;
-			}
-
-			return true;
-		}));
-	};
-
-	QUnit.prototype.reset = function() {
-		var set;
-
-		Unit.prototype.reset.call( this );
-		
-		set = new QuantumSet([
-			new Quantum( 123, 321 ),
-			new Quantum( 2342933, 82888329 ),
-			new Quantum( 2322, 23421 ),
-			new Quantum( 3232123423, 238232482738 ),
-			new Quantum( 2, 12342 )
-		]);
-
-		this._set = set;
-	};
-
-	QUnit.prototype.set = function() {
-		return this._set;
-	};
-
-
-	//
 	// Populate the namespace
 	//
 
 
 	Q.Quantum = Quantum;
 	Q.QuantumSet = QuantumSet;
-	Q.QUnit = QUnit;
-	Q.Unit = Unit;
-	Q.Test = Test;
 }( Q ));
 
